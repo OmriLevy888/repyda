@@ -11,8 +11,8 @@ import ida_dirtree
 
 
 class TreeType(enum.Enum):
-    # ENUMS       = ida_dirtree.DIRTREE_ENUMS  # removed in ida 9
-    # STRUCTS     = ida_dirtree.DIRTREE_STRUCTS # removed in ida 9
+    ENUMS       = ida_dirtree.DIRTREE_ENUMS
+    STRUCTS     = ida_dirtree.DIRTREE_STRUCTS
     FUNCS       = ida_dirtree.DIRTREE_FUNCS
     LOCAL_TYPES = ida_dirtree.DIRTREE_LOCAL_TYPES
     NAMES       = ida_dirtree.DIRTREE_NAMES
