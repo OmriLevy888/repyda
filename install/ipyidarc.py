@@ -1,0 +1,1 @@
+from idapythonrc import reload_package
