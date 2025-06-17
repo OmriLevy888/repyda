@@ -23,6 +23,10 @@ class CompoundTypeMember(Commentable, Nameable, Referenceable, Typed):
         
         return udt[self._idx]
     
+    @property
+    def parent(self) -> CompoundTypeMember:
+        return self._compound
+    
     def delete(self):
         self._compound._tinfo.del_udm(self._idx)
     
@@ -223,7 +227,7 @@ class CompoundType(Type, Nameable, IDBIterable, Commentable):
             if member.name == name or idx == index:
                 return member
         
-        raise ValueError(f'No member named {name} in {self.name}')
+        raise ValueError(f'No member {name=}|{index=} in {self.name}')
     
     def delete_member(self, name: str):
         self.get_member(name).delete()

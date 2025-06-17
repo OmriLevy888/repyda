@@ -1,6 +1,5 @@
 from .basic_types import Type, Pointer, Array, Scalar, import_c_header, TypeDefinition
 from .compund_types import *
-# from .enum import Enum, EnumMember
 from .function_type import FunctionType, Argument
 
 from .basic_types import Void, Bool, Char, UnsignedChar, UnsignedInt8, UnsignedInt16, \
