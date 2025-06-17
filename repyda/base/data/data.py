@@ -163,7 +163,7 @@ class Data(Addressable, Commentable, IDBIterable, Nameable, Referenceable, Refer
         return ida_bytes.has_user_name(self.flags)
 
     def _default_tree_type(self) -> TreeType:
-        return TreeType.NAMES
+        return TreeType.Names
 
     def _is_valid_tree_type(self, type: TreeType) -> bool:
         return type == self._default_tree_type()

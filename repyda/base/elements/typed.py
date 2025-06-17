@@ -1,7 +1,7 @@
 from __future__ import annotations
 from typing import Optional, TYPE_CHECKING
 
-from abc import ABC, abstractproperty, abstractmethod
+from abc import ABC, abstractmethod
 
 if TYPE_CHECKING:
     from repyda.base.types.basic_types import Type
@@ -39,7 +39,8 @@ class Typed(ABC):
     def _set_type(self, value: Optional[Type]):
         raise NotImplementedError
 
-    @abstractproperty
+    @property
+    @abstractmethod
     def guessed_type(self) -> Type:
         pass
 

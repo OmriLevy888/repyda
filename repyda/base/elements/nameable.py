@@ -3,7 +3,7 @@ from typing import Optional, Union, Any
 from pathlib import PurePosixPath
 import enum
 
-from abc import ABC, abstractproperty, abstractmethod
+from abc import ABC, abstractmethod
 
 import ida_ida
 import idc
@@ -11,11 +11,13 @@ import ida_dirtree
 
 
 class TreeType(enum.Enum):
-    ENUMS       = ida_dirtree.DIRTREE_ENUMS
-    STRUCTS     = ida_dirtree.DIRTREE_STRUCTS
-    FUNCS       = ida_dirtree.DIRTREE_FUNCS
-    LOCAL_TYPES = ida_dirtree.DIRTREE_LOCAL_TYPES
-    NAMES       = ida_dirtree.DIRTREE_NAMES
+    Breakpoints         = ida_dirtree.DIRTREE_BPTS
+    Functions           = ida_dirtree.DIRTREE_FUNCS
+    Bookmarks           = ida_dirtree.DIRTREE_IDAPLACE_BOOKMARKS
+    Imports             = ida_dirtree.DIRTREE_IMPORTS
+    Types               = ida_dirtree.DIRTREE_LOCAL_TYPES
+    TypesBookmarks      = ida_dirtree.DIRTREE_LTYPES_BOOKMARKS
+    Names               = ida_dirtree.DIRTREE_NAMES
 
 
 class NamePathIterator:
@@ -42,7 +44,7 @@ class NamePathIterator:
 class NamePath:
     def __init__(self,
                  path: Optional[Union[PurePosixPath, str]] = None,
-                 type: Optional[TreeType] = TreeType.NAMES,
+                 type: Optional[TreeType] = TreeType.Names,
                  *,
                  tree: Optional[ida_dirtree.dirtree_t] = None):
         if tree is None:
@@ -95,16 +97,20 @@ class NamePath:
     @property
     def type(self) -> TreeType:
         match self._tree.get_id():
-            case '$ dirtree/enums':
-                return TreeType.ENUMS
-            case '$ dirtree/structs':
-                return TreeType.STRUCTS
+            case '$ dirtree/bpts':
+                return TreeType.Breakpoints
             case '$ dirtree/funcs':
-                return TreeType.FUNCS
-            case '$ dirtree/local_types':
-                return TreeType.LOCAL_TYPES
+                return TreeType.Functions
+            case '$ dirtree/bookmarks_idaplace_t':
+                return TreeType.Bookmarks
+            case '$ dirtree/imports':
+                return TreeType.Imports
+            case '$ dirtree/tinfos':
+                return TreeType.Types
+            case '$ dirtree/bookmarks_tiplace_t':
+                return TreeType.TypesBookmarksy
             case '$ dirtree/names':
-                return TreeType.NAMES
+                return TreeType.Names
 
     def __iter__(self):
         if not self.is_directory():
@@ -133,7 +139,8 @@ class Nameable(ABC):
 
         return self.name != other.name
 
-    @abstractproperty
+    @property
+    @abstractmethod
     def name(self) -> str:
         raise NotImplementedError
 
@@ -150,11 +157,13 @@ class Nameable(ABC):
         demangled = idc.demangle_name(self.name, ida_ida.inf_get_short_demnames())
         return demangled or self.name
 
-    @abstractproperty
+    @property
+    @abstractmethod
     def is_auto_name(self) -> bool:
         raise NotImplementedError
 
-    @abstractproperty
+    @property
+    @abstractmethod
     def is_user_defined_name(self) -> bool:
         raise NotImplementedError
 

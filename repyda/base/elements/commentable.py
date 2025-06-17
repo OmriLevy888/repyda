@@ -1,9 +1,10 @@
-from abc import ABC, abstractproperty
+from abc import ABC, abstractmethod
 from typing import Optional
 
 
 class Commentable(ABC):
-    @abstractproperty
+    @property
+    @abstractmethod
     def comment(self) -> Optional[str]:
         raise NotImplementedError
 
@@ -15,7 +16,8 @@ class Commentable(ABC):
     def comment(self):
         raise NotImplementedError
 
-    @abstractproperty
+    @property
+    @abstractmethod
     def repeatable_comment(self) -> Optional[str]:
         raise NotImplementedError
 

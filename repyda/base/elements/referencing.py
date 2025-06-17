@@ -1,10 +1,11 @@
 from typing import Generator
-from abc import ABC, abstractproperty
+from abc import ABC, abstractmethod
 
 from .xref import Xref
 
 
 class Referencing(ABC):
-    @abstractproperty
+    @property
+    @abstractmethod
     def referencing(self) -> Generator[Xref, None, None]:
         raise NotImplementedError

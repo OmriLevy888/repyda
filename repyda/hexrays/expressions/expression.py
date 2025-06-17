@@ -4,7 +4,7 @@ from typing import Generator, TYPE_CHECKING
 from collections.abc import Iterable
 
 from .. import HexraysItem, bound_value
-from repyda.base.types import Type, StructMember
+from repyda.base.types import Type, CompoundTypeMember
 
 import ida_hexrays
 
@@ -269,9 +269,9 @@ class MemberAccess(Expression):
     def name(self) -> str:
         return self.object.type.get_member(offset=self.offset).name
 
-    def get_struct_member(self) -> StructMember:
+    def get_member(self) -> CompoundTypeMember:
         if self.object is None or self.offset is None:
-            raise RuntimeError("Can't find StructMember object for partially initialized MemberAccess")
+            raise RuntimeError("Can't find CompountTypeMember object for partially initialized MemberAccess")
 
         return self.object.type.get_member(offset=self.offset)
 
@@ -312,9 +312,9 @@ class MemberArrow(Expression):
     def name(self) -> str:
         return self.object.type.pointed.get_member(offset=self.offset).name
 
-    def get_struct_member(self) -> StructMember:
+    def get_member(self) -> CompoundTypeMember:
         if self.object is None or self.offset is None:
-            raise RuntimeError("Can't find StructMember object for partially initialized MemberArrow")
+            raise RuntimeError("Can't find CompoundTypeMember object for partially initialized MemberArrow")
 
         return self.object.type.pointed.get_member(offset=self.offset)
 
