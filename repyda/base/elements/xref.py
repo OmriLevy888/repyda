@@ -6,7 +6,7 @@ import enum
 if TYPE_CHECKING:
     from .referencing import Referencing
     from .referenceable import Referenceable
-    from repyda.base.types import StructMember, Struct, UnionMember, Union
+    from repyda.base.types import CompoundTypeMember, Struct, Union
     from repyda.hexrays import ObjectAddress
 
 
@@ -42,29 +42,32 @@ class Xref:
     def is_user_defined(self) -> bool:
         return self._xref.type & IDAXrefFlags.USER_SPECIFIED.value != 0
 
-    def _handle_struct_or_union(self, id: int) -> typing.Union[StructMember, Struct, UnionMember, Union]:
-        import ida_struct
+    def _handle_struct_or_union(self, tid: int) -> typing.Union[CompoundTypeMember, Struct, Union]:
         from repyda.base.types import Struct, Union
+        import ida_typeinf
+        
+        try:
+            return Struct(tid=tid)
+        except ValueError:
+            try:
+                return Union(tid=tid)
+            except ValueError:
+                pass
 
-        struct = ida_struct.get_struc(id)
-        if struct is not None:
-            name = ida_struct.get_struc_name(struct.id)
-            if struct.is_union():
-                return Union(name)
-            else:
-                return Struct(name)
-
-        member = ida_struct.get_member_by_id(id)
-        if member is None:
+        udm = ida_typeinf.udm_t()
+        tif = ida_typeinf.tinfo_t()
+        member_idx = tif.get_udm_by_tid(udm, tid)
+        if member_idx < 0:
             raise RuntimeError('No matching class for source')
 
-        full_name = ida_struct.get_member_fullname(id)
-        struct_name, member_name = full_name.split('.')
-        struct = ida_struct.get_member_struc(full_name)
-        if struct.is_union():
-            return Union(struct_name).get_member(member_name)
-
-        return Struct(struct_name).get_member(member_name)
+        if tif.is_struct():
+            compound = Struct(tinfo=tif)
+        elif tif.is_union():
+            compound = Union(tinfo=tif)
+        else:
+            raise RuntimeError(f'Failed getting parent of field reference')
+        
+        return compound.get_member(index=member_idx)
 
     @property
     def source(self) -> Referencing:
@@ -72,8 +75,7 @@ class Xref:
             from .addressable import Addressable
             return Addressable.at(self._xref.frm)
         except ValueError:
-            # for structs and unions, this is reversed
-            return Addressable.at(self._xref.to)
+            return self._handle_struct_or_union(self._xref.frm)
 
     @property
     def destination(self) -> Referenceable:
@@ -81,7 +83,7 @@ class Xref:
             from .addressable import Addressable
             return Addressable.at(self._xref.to)
         except ValueError:
-            return self._handle_struct_or_union(self._xref.frm)
+            return self._handle_struct_or_union(self._xref.to)
 
     @property
     def exact_source(self) -> Referencing:
@@ -89,8 +91,7 @@ class Xref:
             from .addressable import Addressable
             return Addressable.exact_at(self._xref.frm)
         except ValueError:
-            # for structs and unions, this is reversed
-            return Addressable.exact_at(self._xref.to)
+            return self._handle_struct_or_union(self._xref.frm)
 
     @property
     def exact_destination(self) -> Referenceable:
@@ -98,7 +99,7 @@ class Xref:
             from .addressable import Addressable
             return Addressable.exact_at(self._xref.to)
         except ValueError:
-            return self._handle_struct_or_union(self._xref.frm)
+            return self._handle_struct_or_union(self._xref.to)
 
     @property
     def decompiled_source_from(self) -> Optional[ObjectAddress]:
@@ -134,16 +135,16 @@ class Xref:
     def __eq__(self, other) -> bool:
         if not isinstance(other, Xref):
             raise NotImplementedError
-
-        return self.source.ea == other.source.ea and \
-            self.exact_source.ea == other.exact_source.ea and \
-            self.destination.ea == other.destination.ea and \
-            self.exact_destination.ea == other.exact_destination.ea and \
+        
+        return self.source == other.source and \
+            self.exact_source == other.exact_source and \
+            self.destination == other.destination and \
+            self.exact_destination == other.exact_destination and \
             self.type == other.type and \
             self.is_user_defined == other.is_user_defined
 
     def __repr__(self) -> str:
         type = self.type
-        source = hex(self.exact_source.ea)
-        dest = hex(self.exact_destination.ea)
+        source = self.exact_source
+        dest = self.exact_destination
         return f'Xref({type=}, {source=}, {dest=})'

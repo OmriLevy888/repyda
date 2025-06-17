@@ -1,14 +1,16 @@
 from typing import Generator
-from abc import ABC, abstractproperty
+from abc import ABC, abstractmethod
 
 from .xref import Xref
 
 
 class Referenceable(ABC):
-    @abstractproperty
+    @property
+    @abstractmethod
     def references(self) -> Generator[Xref, None, None]:
         raise NotImplementedError
 
-    @abstractproperty
+    @property
+    @abstractmethod
     def all_references(self) -> Generator[Xref, None, None]:
         raise NotImplementedError

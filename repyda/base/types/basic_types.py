@@ -22,10 +22,9 @@ def import_c_header():
 
 
 def get_handling_class_for_tinfo(tinfo: ida_typeinf.tinfo_t) -> type:
-    from repyda.base.types.enum import Enum
+    # from repyda.base.types.enum import Enum
     from repyda.base.types.function_type import FunctionType
-    from repyda.base.types.struct import Struct
-    from repyda.base.types.union import Union
+    from repyda.base.types.compund_types import Struct, Union
 
     if (tinfo.is_typedef() or (tinfo.is_from_subtil() and tinfo.is_typeref())) and not tinfo.is_forward_decl() and not tinfo.is_scalar():
         return TypeDefinition
@@ -108,8 +107,8 @@ class Type(Referenceable):
         return Type.from_tinfo(tinfo)
 
     def __init__(self, tinfo: ida_typeinf.tinfo_t):
-        if get_handling_class_for_tinfo(tinfo) is not self.__class__:
-            right_class = get_handling_class_for_tinfo(tinfo)
+        right_class = get_handling_class_for_tinfo(tinfo)
+        if right_class is not self.__class__ and right_class is not TypeDefinition:
             raise ValueError(f'Should use {right_class} rather than {self.__class__}')
 
         self._tinfo = tinfo
