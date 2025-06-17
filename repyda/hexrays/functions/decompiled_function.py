@@ -87,10 +87,10 @@ class DecompiledFunction(Matchable, IDBIterable, Referencing, Referenceable, Nam
         return self.function.is_user_defined_name
 
     def _default_tree_type(self) -> TreeType:
-        return TreeType.FUNCS
+        return TreeType.Functions
 
     def _is_valid_tree_type(self, type: TreeType) -> bool:
-        return type in (TreeType.FUNCS, TreeType.NAMES)
+        return type in (TreeType.Functions, TreeType.Names)
 
     @property
     def size(self) -> int:

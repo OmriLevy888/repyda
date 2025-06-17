@@ -241,10 +241,10 @@ class Struct(Type, Commentable, IDBIterable, Nameable, Referenceable):
         raise NotImplementedError
 
     def _default_tree_type(self) -> TreeType:
-        return TreeType.STRUCTS
+        return TreeType.Types
 
     def _is_valid_tree_type(self, type: TreeType) -> bool:
-        return type in (TreeType.STRUCTS, TreeType.LOCAL_TYPES)
+        return type == TreeType.Types
 
     @property
     def comment(self) -> Optional[str]:

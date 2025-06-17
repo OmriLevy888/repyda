@@ -102,10 +102,10 @@ class Function(IDBIterable, Referencing, Referenceable, Nameable, Commentable, A
         return ida_bytes.has_user_name(ida_bytes.get_flags(self.ea))
 
     def _default_tree_type(self) -> TreeType:
-        return TreeType.FUNCS
+        return TreeType.Functions
 
     def _is_valid_tree_type(self, type: TreeType) -> bool:
-        return type in (TreeType.FUNCS, TreeType.NAMES)
+        return type in (TreeType.Functions, TreeType.Names)
 
     @property
     def size(self) -> int:

@@ -227,10 +227,10 @@ class Enum(Type, Nameable, Commentable, IDBIterable):
         raise NotImplementedError
 
     def _default_tree_type(self) -> TreeType:
-        return TreeType.ENUMS
+        return TreeType.Types
 
     def _is_valid_tree_type(self, type: TreeType) -> bool:
-        return type in (TreeType.ENUMS, TreeType.LOCAL_TYPES)
+        return type == TreeType.Types
 
     @property
     def comment(self) -> Optional[str]:
