@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from abc import ABC, abstractproperty, abstractstaticmethod
+from abc import ABC, abstractmethod
 from typing import Generator, Optional, Iterable, Union
 
 import ida_bytes
@@ -39,7 +39,8 @@ class Color:
 
 
 class Addressable(ABC):
-    @abstractstaticmethod
+    @staticmethod
+    @abstractmethod
     def exists_at(ea: int) -> bool:
         raise NotImplementedError
 
@@ -94,15 +95,18 @@ class Addressable(ABC):
 
         return self.ea != other.ea
 
-    @abstractproperty
+    @property
+    @abstractmethod
     def ea(self) -> int:
         raise NotImplementedError
 
-    @abstractproperty
+    @property
+    @abstractmethod
     def flags(self) -> int:
         raise NotImplementedError
 
-    @abstractproperty
+    @property
+    @abstractmethod
     def size(self) -> int:
         raise NotImplementedError
 

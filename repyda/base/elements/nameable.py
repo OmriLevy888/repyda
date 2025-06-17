@@ -3,7 +3,7 @@ from typing import Optional, Union, Any
 from pathlib import PurePosixPath
 import enum
 
-from abc import ABC, abstractproperty, abstractmethod
+from abc import ABC, abstractmethod
 
 import ida_ida
 import idc
@@ -139,7 +139,8 @@ class Nameable(ABC):
 
         return self.name != other.name
 
-    @abstractproperty
+    @property
+    @abstractmethod
     def name(self) -> str:
         raise NotImplementedError
 
@@ -156,11 +157,13 @@ class Nameable(ABC):
         demangled = idc.demangle_name(self.name, ida_ida.inf_get_short_demnames())
         return demangled or self.name
 
-    @abstractproperty
+    @property
+    @abstractmethod
     def is_auto_name(self) -> bool:
         raise NotImplementedError
 
-    @abstractproperty
+    @property
+    @abstractmethod
     def is_user_defined_name(self) -> bool:
         raise NotImplementedError
 
