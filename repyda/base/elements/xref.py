@@ -59,7 +59,7 @@ class Xref:
                     if edm_idx == -1:
                         return enum
                     
-                    return enum.get_member(None, index=edm_idx)
+                    return enum.get_member(index=edm_idx)
                 except ValueError:
                     pass
 

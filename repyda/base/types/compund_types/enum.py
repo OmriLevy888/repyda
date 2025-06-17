@@ -110,19 +110,60 @@ class EnumMember(Commentable, Referenceable, Nameable, IDBIterable):
 
     @value.setter
     def value(self, value: int):
-        # TODO: support bitmask
-        # error = self._enum._tinfo.edit_edm(self._idx, value, self.bit_mask)
-        error = self._enum._tinfo.edit_edm(self._idx, value, 0)
+        if self._enum.is_bitfield:
+            mask = value
+        else:
+            mask = -1
+        
+        error = self._enum._tinfo.edit_edm(self._idx, value, mask)
         if error != 0:
             raise RuntimeError(f'Failed to set value of {self.enum}::{self.name}: {ida_typeinf.tinfo_errstr(error)}')
 
     @property
+    def is_bit_mask(self) -> bool:
+        if not self._enum.is_bitfield:
+            raise ValueError(f'Enum {self.enum.name} is not bitfield, only bitfield enums can be a bit mask')
+        
+        # TODO: there has to be a less fragile way to do this
+        etd = ida_typeinf.enum_type_data_t()
+        if not self._enum._tinfo.get_enum_details(etd):
+            raise RuntimeError(f'Failed to get enum data of {self._enum}')
+        
+        for start_idx, size in etd.all_groups():
+            if size == 1:
+                continue
+            
+            if start_idx == self._idx:
+                return True
+        
+        return False
+
+    @property
     def bit_mask(self) -> int:
-        # TODO: implement
-        pass
+        if not self._enum.is_bitfield:
+            raise ValueError(f'Cannot get bitmask of non bitfield enum {self.enum.name} member')
+        
+        # TODO: there has to be a less fragile way to do this
+        etd = ida_typeinf.enum_type_data_t()
+        if not self._enum._tinfo.get_enum_details(etd):
+            raise RuntimeError(f'Failed to get enum data of {self._enum}')
+        
+        for start_idx, size in etd.all_groups():
+            if (self._idx == start_idx + size) and size == 1:
+                return self.value
+            
+            if self._idx >= start_idx + size:
+                continue
+            
+            return self._enum.get_member(index=start_idx).value
+            
+        raise RuntimeError('Internal error finding mask of {self}')
     
     @bit_mask.setter
     def bit_mask(self, value: int):
+        if not self._enum.is_bitfield:
+            raise ValueError(f'Cannot set bitmask of non bitfield enum {self.enum.name} member')
+        
         error = self._enum._tinfo.edit_edm(self._idx, self.value, value)
         if error != 0:
             raise RuntimeError(f'Failed to set value of {self.enum}::{self.name}: {ida_typeinf.tinfo_errstr(error)}')
@@ -157,17 +198,20 @@ class Enum(Type, Nameable, Commentable, IDBIterable):
             return False
     
     @classmethod
-    def create_empty(cls, name: str):
+    def create_empty(cls, name: str, *, is_bitfield: bool = False):
         tif = ida_typeinf.tinfo_t()
-        edm = ida_typeinf.enum_type_data_t()
-        if not tif.create_enum(edm):
+        etd = ida_typeinf.enum_type_data_t()
+        if not tif.create_enum(etd):
             raise RuntimeError(f'Could not create enum {name}')
         
         error = tif.set_named_type(None, name)
         if error != 0:
             raise RuntimeError(f'Failed to name enum {name}: {ida_typeinf.tinfo_errstr(error)}')
         
-        return Enum(tinfo=tif)
+        enum = Enum(tinfo=tif)
+        enum.is_bitfield = is_bitfield
+        
+        return enum
 
     def __init__(self,
                  name: Optional[str] = None,
@@ -257,7 +301,7 @@ class Enum(Type, Nameable, Commentable, IDBIterable):
         for idx in range(self.count_values):
             yield EnumMember(idx, self)
 
-    def get_member(self, name: Optional[str], *, index: int = None) -> EnumMember:
+    def get_member(self, name: Optional[str] = None, *, index: int = None) -> EnumMember:
         for idx, member in enumerate(self.iter_members()):
             if member.name == name or idx == index:
                 return member
@@ -269,14 +313,24 @@ class Enum(Type, Nameable, Commentable, IDBIterable):
 
     def add_member(self,
                    name: str,
-                   value: Optional[int] = None) -> EnumMember:
-        # TODO: support bitmask members
+                   value: Optional[int] = None,
+                   *,
+                   mask: int = None) -> EnumMember:
         edm = ida_typeinf.edm_t()
         edm.name = name
         if value is None:
-            edm.value = self.max_value + 1
+            if not self.is_bitfield and mask is not None:
+                raise ValueError('Cannot pass mask if enum is not bitfield')
+            
+            edm.value, mask = {(True, True): (1, 1),
+                               (True, False): (0, -1),
+                               (False, True): (self.max_value * 2, self.max_value * 2),
+                               (False, False): (self.max_value + 1, -1),
+                }.get((self.count_values == 0, self.is_bitfield))
+        else:
+            edm.value = value
         
-        error = self._tinfo.add_edm(edm, -1)
+        error = self._tinfo.add_edm(edm, mask)
         if error != 0:
             raise RuntimeError(f'Failed to add new member {name}={value} to {self}: {ida_typeinf.tinfo_errstr(error)}')
         
@@ -315,23 +369,35 @@ class Enum(Type, Nameable, Commentable, IDBIterable):
 
     @is_bitfield.setter
     def is_bitfield(self, value: bool):
-        self._tinfo.set_enum_is_bitmaks(value)
+        error = self._tinfo.set_enum_is_bitmask(value)
+        if error != 0:
+            raise RuntimeError(f'Failed to set enum bitfield {self.name}: {ida_typeinf.tinfo_errstr(error)}')
     
     @property
     def base_type(self) -> Type:
-        from ..basic_types import SignedInt8, SignedInt16, SignedInt32, SignedInt64
+        from ..basic_types import SignedInt8, SignedInt16, SignedInt32, SignedInt64, \
+            UnsignedInt8, UnsignedInt16, UnsignedInt32, UnsignedInt64
+        
         return {
             ida_typeinf.BT_INT8: SignedInt8,
             ida_typeinf.BT_INT16: SignedInt16,
             ida_typeinf.BT_INT32: SignedInt32,
             ida_typeinf.BT_INT64: SignedInt64,
+            ida_typeinf.BTF_UINT8: UnsignedInt8,
+            ida_typeinf.BTF_UINT16: UnsignedInt16,
+            ida_typeinf.BTF_UINT32: UnsignedInt32,
+            ida_typeinf.BTF_UINT64: UnsignedInt64,
         }.get(self._tinfo.get_enum_base_type())
     
     @base_type.setter
     def base_type(self, value: Type):
-        from ..basic_types import SignedInt8, SignedInt16, SignedInt32, SignedInt64
-        if value not in (SignedInt8, SignedInt16, SignedInt32, SignedInt64):
+        from ..basic_types import SignedInt8, SignedInt16, SignedInt32, SignedInt64, \
+            UnsignedInt8, UnsignedInt16, UnsignedInt32, UnsignedInt64
+            
+        if not self.is_bitfield and value not in (SignedInt8, SignedInt16, SignedInt32, SignedInt64):
             raise ValueError(f'Invalid enum type {value}')
+        elif self.is_bitfield and value not in (UnsignedInt8, UnsignedInt16, UnsignedInt32, UnsignedInt64):
+            raise ValueError(f'Invalid bitfield enum type {value}')
         
         self.width = value.size
     
