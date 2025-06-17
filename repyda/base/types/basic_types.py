@@ -22,9 +22,8 @@ def import_c_header():
 
 
 def get_handling_class_for_tinfo(tinfo: ida_typeinf.tinfo_t) -> type:
-    # from repyda.base.types.enum import Enum
     from repyda.base.types.function_type import FunctionType
-    from repyda.base.types.compund_types import Struct, Union
+    from repyda.base.types.compund_types import Struct, Union, Enum
 
     if (tinfo.is_typedef() or (tinfo.is_from_subtil() and tinfo.is_typeref())) and not tinfo.is_forward_decl() and not tinfo.is_scalar():
         return TypeDefinition

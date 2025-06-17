@@ -22,6 +22,7 @@ class XrefType(enum.Enum):
     READ            = 0x03
     TEXT            = 0x04
     INFORMATIONAL   = 0x05
+    ENUM            = 0x06
     CALL_FAR        = 0x10
     CALL_NEAR       = 0x11
     JUMP_FAR        = 0x12
@@ -43,7 +44,7 @@ class Xref:
         return self._xref.type & IDAXrefFlags.USER_SPECIFIED.value != 0
 
     def _handle_struct_or_union(self, tid: int) -> typing.Union[CompoundTypeMember, Struct, Union]:
-        from repyda.base.types import Struct, Union
+        from repyda.base.types import Struct, Union, Enum
         import ida_typeinf
         
         try:
@@ -52,7 +53,15 @@ class Xref:
             try:
                 return Union(tid=tid)
             except ValueError:
-                pass
+                try:
+                    enum = Enum(tid=tid)
+                    edm_idx = enum.get_tinfo().get_edm_by_tid(None, tid)
+                    if edm_idx == -1:
+                        return enum
+                    
+                    return enum.get_member(None, index=edm_idx)
+                except ValueError:
+                    pass
 
         udm = ida_typeinf.udm_t()
         tif = ida_typeinf.tinfo_t()
