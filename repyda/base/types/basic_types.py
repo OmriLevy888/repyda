@@ -110,6 +110,10 @@ class Type(Referenceable):
         if right_class is not self.__class__ and right_class is not TypeDefinition:
             raise ValueError(f'Should use {right_class} rather than {self.__class__}')
 
+        if right_class is TypeDefinition:
+            # TODO: add some _actual_tinfo member which should be the one facing the user
+            pass
+
         self._tinfo = tinfo
 
     def __str__(self) -> str:

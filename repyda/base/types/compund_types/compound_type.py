@@ -60,7 +60,13 @@ class CompoundTypeMember(Commentable, Nameable, Referenceable, Typed):
         raise NotImplementedError('Folders are not implemented for compound type members')
     
     def _get_type(self) -> Optional[Type]:
-        return Type.from_tinfo(self._udm.type)
+        # Only way i managed to make IDA not fuck up the life time of the tinfo,
+        # tried manually coppying it in CompoundTypeMember._udm but it didn't work
+        udt = ida_typeinf.udt_type_data_t()
+        if not self._compound._tinfo.get_udt_details(udt):
+            raise RuntimeError(f'Failed to get compound type information for {self._compound}')
+        
+        return Type.from_tinfo(ida_typeinf.tinfo_t(udt[self._idx].type))
     
     def _set_type(self, value: Optional[Type]):
         from ..basic_types import UnsignedInt8
@@ -70,7 +76,9 @@ class CompoundTypeMember(Commentable, Nameable, Referenceable, Typed):
         if isinstance(value, FunctionType):
             value = Pointer(value)
         
-        self._compound._tinfo.set_udm_type(self._idx, value.get_tinfo())
+        error = self._compound._tinfo.set_udm_type(self._idx, value.get_tinfo())
+        if error != 0:
+            raise RuntimeError(f'Faield to set type {value} to {self}: {ida_typeinf.tinfo_errstr(error)}')
     
     @property
     def guessed_type(self) -> Type:
