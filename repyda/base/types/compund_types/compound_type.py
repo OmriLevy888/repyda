@@ -8,6 +8,7 @@ from repyda.base.elements import Nameable, IDBIterable, Commentable, TreeType, X
 
 import ida_typeinf
 import idautils
+import construct
 
 
 class CompoundTypeMember(Commentable, Nameable, Referenceable, Typed):
@@ -350,6 +351,9 @@ class Struct(CompoundType):
     def _add_member_offset(self) -> int:
         return self.size * 8
     
+    def get_construct_struct(self) -> construct.Struct:
+        raise NotImplementedError
+    
     def __repr__(self) -> str:
         return f'struct {self.name}'
 
@@ -382,6 +386,9 @@ class Union(CompoundType):
     
     def _add_member_offset(self) -> int:
         return 0
+    
+    def get_construct_struct(self) -> construct.Struct:
+        raise NotImplementedError
     
     def __repr__(self) -> str:
         return f'union {self.name}'

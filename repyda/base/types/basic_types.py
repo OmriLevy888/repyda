@@ -5,12 +5,12 @@ import ida_typeinf
 import ida_kernwin
 import ida_nalt
 import ida_ida
-from typing import Optional, Tuple, TypeVar, Generic, Union, Any
+from typing import Optional, Tuple, TypeVar, Generic, Union, Any, Generator
 
 import sys
 import construct
 
-from repyda.base.elements.referenceable import Referenceable
+from repyda.base.elements import Referenceable, Xref, IDBIterable, Commentable
 
 
 def _is_generic_alias(object: Any) -> bool:
@@ -418,9 +418,83 @@ class Scalar(Type):
             self._tinfo.is_float() == other._tinfo.is_float()
 
 
-class TypeDefinition(Type):
-    # TODO: rework methods
-    pass
+class TypeInstanceCheck(type):
+    def __instancecheck__(self, instance) -> bool:
+        return super().__instancecheck__(instance)
+
+
+class TypeDefinition(Type, IDBIterable, Commentable, metaclass=TypeInstanceCheck):
+    @staticmethod
+    def iter() -> Generator[TypeDefinition, None, None]:
+        raise NotImplementedError
+
+    @classmethod
+    def create_typedef(cls,
+                       name: str,
+                       *,
+                       target: Union[str, Type] = None,
+                       tid: int = None,
+                       tinfo: ida_typeinf.tinfo_t = None) -> TypeDefinition:
+        raise NotImplementedError
+    
+    @classmethod
+    def iter_for_type(cls,
+                      target: Union[str, Type] = None,
+                      *,
+                      tid: int = None,
+                      tinfo: ida_typeinf.tinfo_t = None) -> Generator[TypeDefinition, None, None]:
+        raise NotImplementedError
+    
+    def delete(self):
+        raise NotImplementedError
+    
+    @property
+    def target(self) -> Type:
+        raise NotImplementedError
+    
+    @target.setter
+    def target(self, value: Union[Type, str]):
+        raise NotImplementedError
+    
+    @property
+    def final_target(self) -> Type:
+        raise NotImplementedError
+    
+    @property
+    def comment(self) -> Optional[str]:
+        return self._tinfo.get_type_cmt()
+
+    @comment.setter
+    def comment(self, value: Optional[str]):
+        error = self._tinfo.set_type_cmt(value, is_regcmt=True)
+        if error != 0:
+            raise RuntimeError(f'Failed to comment {self}: {ida_typeinf.tinfo_errstr(error)}')
+
+    @comment.deleter
+    def comment(self):
+        self.comment = None
+
+    @property
+    def repeatable_comment(self) -> Optional[str]:
+        return self._tinfo.get_type_rptcmt()
+
+    @repeatable_comment.setter
+    def repeatable_comment(self, value: Optional[str]):
+        error = self._tinfo.set_type_cmt(value, is_regcmt=False)
+        if error != 0:
+            raise RuntimeError(f'Failed to repeat comment {self}: {ida_typeinf.tinfo_errstr(error)}')
+
+    @repeatable_comment.deleter
+    def repeatable_comment(self):
+        self.repeatable_comment = None
+    
+    @property
+    def references(self) -> Generator[Xref, None, None]:
+        raise NotImplementedError
+
+    @property
+    def all_references(self) -> Generator[Xref, None, None]:
+        raise NotImplementedError
 
 
 def _compute_architecutre_dependant_scalar_types():

@@ -6,6 +6,7 @@ from repyda.base.elements import IDBIterable, Commentable, Referenceable, TreeTy
 
 import ida_typeinf
 import idautils
+import construct
 
 
 class EnumMember(Commentable, Referenceable, Nameable, IDBIterable):
@@ -407,4 +408,7 @@ class Enum(Type, Nameable, Commentable, IDBIterable):
 
     @property
     def all_references(self) -> Generator[Xref, None, None]:
+        raise NotImplementedError
+    
+    def get_construct_struct(self) -> construct.Struct:
         raise NotImplementedError
