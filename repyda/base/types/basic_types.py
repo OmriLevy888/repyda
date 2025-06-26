@@ -7,12 +7,15 @@ import ida_kernwin
 import ida_nalt
 import ida_ida
 import idautils
-from typing import Optional, Tuple, TypeVar, Generic, Union, Any, Generator
+from typing import Optional, Tuple, TypeVar, Generic, Union, Any, Generator, TYPE_CHECKING
 
 import sys
 import construct
 
 from repyda.base.elements import Referenceable, Xref, XrefType, IDBIterable, Commentable, Nameable, TreeType
+
+if TYPE_CHECKING:
+    from .compund_types import CompoundTypeMember, EnumMember
 
 
 def _is_generic_alias(object: Any) -> bool:
@@ -61,6 +64,32 @@ class Type(Referenceable, metaclass=TypeMeta):
     @staticmethod
     def from_tinfo(tinfo: ida_typeinf.tinfo_t) -> Type:
         return get_handling_class_for_tinfo(tinfo)(tinfo=tinfo)
+    
+    @staticmethod
+    def from_tid(tid: ida_typeinf.tinfo_t,
+                 *,
+                 mermbers_return_parent: bool = False) -> Union[Type, CompoundTypeMember, EnumMember]:
+        from .compund_types import Enum, CompoundType
+        
+        tif = ida_typeinf.tinfo_t()
+        if not tif.get_type_by_tid(tid):
+            raise RuntimeError(f'Failed to get tinfo for {tid}')
+
+        type_object = get_handling_class_for_tinfo(tif)(tinfo=tif)
+        if mermbers_return_parent:
+            return type_object
+        
+        if isinstance(type_object, Enum):
+            edm_idx = type_object._tinfo.get_edm_by_tid(None, tid)
+            if edm_idx != -1:
+                return type_object.get_member(index=edm_idx)
+        elif isinstance(type_object, CompoundType):
+            udm = ida_typeinf.udm_t()
+            member_idx = type_object._tinfo.get_udm_by_tid(udm, tid)
+            if member_idx >= 0:
+                return type_object.get_member(index=member_idx)
+        
+        return type_object
 
     @staticmethod
     def _fix_declaration_padding(declaration: str) -> str:
@@ -304,14 +333,6 @@ class NameableType(Type, Nameable):
     @name.deleter
     def name(self):
         self.name = None
-
-    @property
-    def is_auto_name(self) -> bool:
-        raise NotImplementedError
-
-    @property
-    def is_user_defined_name(self) -> bool:
-        raise NotImplementedError
 
     def _default_tree_type(self) -> TreeType:
         return TreeType.Types

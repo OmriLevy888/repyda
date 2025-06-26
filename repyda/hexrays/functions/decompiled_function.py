@@ -78,14 +78,6 @@ class DecompiledFunction(Matchable, IDBIterable, Referencing, Referenceable, Nam
     def name(self):
         self.name = None
 
-    @property
-    def is_auto_name(self) -> bool:
-        return self.function.is_auto_name
-
-    @property
-    def is_user_defined_name(self) -> bool:
-        return self.function.is_user_defined_name
-
     def _default_tree_type(self) -> TreeType:
         return TreeType.Functions
 

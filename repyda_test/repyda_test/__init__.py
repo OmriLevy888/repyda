@@ -13,3 +13,8 @@ class IDBTestCase:
         ida.open_database(str(self.IDB), self.AUTO_ANALISYS)
         yield
         ida.close_database(self.MODIFY_IDB)
+    
+    @pytest.fixture(scope='class')
+    def repyda(self):
+        import repyda
+        yield repyda

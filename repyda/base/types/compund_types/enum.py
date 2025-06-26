@@ -83,14 +83,6 @@ class EnumMember(Commentable, Referenceable, Nameable, IDBIterable):
     def name(self):
         self.name = None
 
-    @property
-    def is_auto_name(self) -> bool:
-        raise NotImplementedError
-
-    @property
-    def is_user_defined_name(self) -> bool:
-        raise NotImplementedError
-
     def _default_tree_type(self) -> TreeType:
         raise NotImplementedError('Not implemented for EnumMember')
 

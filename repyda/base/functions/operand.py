@@ -4,7 +4,7 @@ from typing import Union, Optional, TYPE_CHECKING
 import enum
 import sys
 
-import idaapi
+import ida_ida
 import idc
 import ida_ua
 
@@ -150,7 +150,7 @@ class Operand(Sequenceable):
 
         value = idc.get_operand_value(self.instruction.ea, self._idx)
 
-        if idaapi.get_inf_structure().procname == 'ARM':
+        if ida_ida.inf_get_procname() == 'ARM':
             value = Data.type_value_at(type=SizeT, ea=value)
 
         return value

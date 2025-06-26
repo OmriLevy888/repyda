@@ -157,18 +157,6 @@ class Nameable(ABC):
         demangled = idc.demangle_name(self.name, ida_ida.inf_get_short_demnames())
         return demangled or self.name
 
-    @property
-    @abstractmethod
-    def is_auto_name(self) -> bool:
-        # TODO: reconsider implementation
-        raise NotImplementedError
-
-    @property
-    @abstractmethod
-    def is_user_defined_name(self) -> bool:
-        # TODO: reconsider implementation
-        raise NotImplementedError
-
     @abstractmethod
     def _default_tree_type(self) -> TreeType:
         raise NotImplementedError

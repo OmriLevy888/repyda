@@ -154,14 +154,6 @@ class Data(Addressable, Commentable, IDBIterable, Nameable, Referenceable, Refer
     def name(self):
         self.name = None
 
-    @property
-    def is_auto_name(self) -> bool:
-        return ida_bytes.has_auto_name(self.flags)
-
-    @property
-    def is_user_defined_name(self) -> bool:
-        return ida_bytes.has_user_name(self.flags)
-
     def _default_tree_type(self) -> TreeType:
         return TreeType.Names
 

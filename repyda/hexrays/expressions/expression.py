@@ -230,6 +230,8 @@ class HelperExpression(Expression):
 
 class TypeExpression(Expression):
     HEXRAYS_TYPE = ida_hexrays.cot_type
+    
+    # TODO: when is this even a thing?
 
     def make_citem_t(self) -> ida_hexrays.citem_t:
         #TODO: implement make_citem_t

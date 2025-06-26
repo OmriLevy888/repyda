@@ -93,7 +93,6 @@ class HexraysItem(Matchable):
         return DecompiledFunction(function=self._cfunc)
 
     def iter_children(self) -> Generator[HexraysItem, None, None]:
-        #TODO: should yield Any objects?
         yield from ()
 
     def next_in_parent(self) -> Union[HexraysItem, None]:
@@ -199,7 +198,7 @@ class HexraysItem(Matchable):
 
     def __or__(self, other: HexraysItem) -> Either:
         if not isinstance(other, HexraysItem):
-            return NotImplemented
+            other = HexraysItem._wrap(other)
 
         from .match_modifiers import Either
         return Either(self, other)
@@ -209,7 +208,7 @@ class HexraysItem(Matchable):
         return Contains(self)
 
     @staticmethod
-    def _wrap(item: Union[None, HexraysItem, int, float, str, bytes, Container]) -> Optional[HexraysItem]:
+    def _wrap(item: Union[None, HexraysItem, int, float, str, bytes, Container, type]) -> Optional[HexraysItem]:
         if item is None:
             return item
         elif isinstance(item, HexraysItem):
@@ -228,6 +227,8 @@ class HexraysItem(Matchable):
         elif isinstance(item, (bytes, Container)):
             from repyda.hexrays.expressions import ObjectAddress
             return ObjectAddress(value=item)
+        elif isinstance(item, type):
+            return item()
 
         raise RuntimeError('Item does not match any type, this should never happen')
 
@@ -344,7 +345,7 @@ class HexraysItem(Matchable):
         if do_refresh:
             # Fetch view before update in case it was not yet registered
             from repyda.hexrays.functions.decompiled_function import DecompiledFunction
-            DecompiledFunction(function=cfunc).view
+            DecompiledFunction(function=self._cfunc).view
 
         if isinstance(self, Expression) and not isinstance(other, Expression):
             raise RuntimeError(f'Can only swap statement with another statement {self.__class__.__name__} -> {other.__class__.__name__}')

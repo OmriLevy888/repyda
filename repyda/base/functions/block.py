@@ -53,28 +53,27 @@ class Block(Addressable, Commentable, Nameable, Referenceable, Referencing, Mult
 
     @property
     def comment(self) -> Optional[str]:
-        # TODO: is this the same as setting a comment on the first instruction?
-        raise NotImplementedError
+        return next(self.iter_instructions()).comment
 
     @comment.setter
     def comment(self, value: Optional[str]):
-        raise NotImplementedError
+        next(self.iter_instructions()).comment = value
 
     @comment.deleter
     def comment(self):
-        raise NotImplementedError
+        self.comment = None
 
     @property
     def repeatable_comment(self) -> Optional[str]:
-        raise NotImplementedError
+        return next(self.iter_instructions()).repeatable_comment
 
     @repeatable_comment.setter
     def repeaterable_comment(self, value: Optional[str]):
-        raise NotImplementedError
+        next(self.iter_instructions()).comment = value
 
     @repeatable_comment.deleter
     def repeatable_comment(self):
-        raise NotImplementedError
+        self.repeatable_comment = None
 
     @property
     def name(self) -> str:
@@ -86,15 +85,7 @@ class Block(Addressable, Commentable, Nameable, Referenceable, Referencing, Mult
 
     @name.deleter
     def name(self):
-        raise NotImplementedError
-
-    @property
-    def is_auto_name(self) -> bool:
-        raise NotImplementedError
-
-    @property
-    def is_user_defined_name(self) -> bool:
-        raise NotImplementedError
+        self.name = None
 
     @property
     def references(self) -> Generator[Xref, None, None]:

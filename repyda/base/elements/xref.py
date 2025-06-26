@@ -1,12 +1,10 @@
 from __future__ import annotations
 from typing import Optional, TYPE_CHECKING
-import typing
 import enum
 
 if TYPE_CHECKING:
     from .referencing import Referencing
     from .referenceable import Referenceable
-    from repyda.base.types import CompoundTypeMember, Struct, Union
     from repyda.hexrays import ObjectAddress
 
 
@@ -28,6 +26,7 @@ class XrefType(enum.Enum):
     JUMP_FAR        = 0x12
     JUMP_NEAR       = 0x13
     ORDINARY_FLOW   = 0x15
+    TYPEDEF         = 0x16
 
 
 class Xref:
@@ -43,48 +42,14 @@ class Xref:
     def is_user_defined(self) -> bool:
         return self._xref.type & IDAXrefFlags.USER_SPECIFIED.value != 0
 
-    def _handle_struct_or_union(self, tid: int) -> typing.Union[CompoundTypeMember, Struct, Union]:
-        from repyda.base.types import Struct, Union, Enum
-        import ida_typeinf
-        
-        try:
-            return Struct(tid=tid)
-        except ValueError:
-            try:
-                return Union(tid=tid)
-            except ValueError:
-                try:
-                    enum = Enum(tid=tid)
-                    edm_idx = enum.get_tinfo().get_edm_by_tid(None, tid)
-                    if edm_idx == -1:
-                        return enum
-                    
-                    return enum.get_member(index=edm_idx)
-                except ValueError:
-                    pass
-
-        udm = ida_typeinf.udm_t()
-        tif = ida_typeinf.tinfo_t()
-        member_idx = tif.get_udm_by_tid(udm, tid)
-        if member_idx < 0:
-            raise RuntimeError('No matching class for source')
-
-        if tif.is_struct():
-            compound = Struct(tinfo=tif)
-        elif tif.is_union():
-            compound = Union(tinfo=tif)
-        else:
-            raise RuntimeError(f'Failed getting parent of field reference')
-        
-        return compound.get_member(index=member_idx)
-
     @property
     def source(self) -> Referencing:
         try:
             from .addressable import Addressable
             return Addressable.at(self._xref.frm)
         except ValueError:
-            return self._handle_struct_or_union(self._xref.frm)
+            from ..types import Type
+            return Type.from_tid(self._xref.frm)
 
     @property
     def destination(self) -> Referenceable:
@@ -92,7 +57,8 @@ class Xref:
             from .addressable import Addressable
             return Addressable.at(self._xref.to)
         except ValueError:
-            return self._handle_struct_or_union(self._xref.to)
+            from ..types import Type
+            return Type.from_tid(self._xref.to)
 
     @property
     def exact_source(self) -> Referencing:
@@ -100,7 +66,8 @@ class Xref:
             from .addressable import Addressable
             return Addressable.exact_at(self._xref.frm)
         except ValueError:
-            return self._handle_struct_or_union(self._xref.frm)
+            from ..types import Type
+            return Type.from_tid(self._xref.frm)
 
     @property
     def exact_destination(self) -> Referenceable:
@@ -108,7 +75,8 @@ class Xref:
             from .addressable import Addressable
             return Addressable.exact_at(self._xref.to)
         except ValueError:
-            return self._handle_struct_or_union(self._xref.to)
+            from ..types import Type
+            return Type.from_tid(self._xref.to)
 
     @property
     def decompiled_source_from(self) -> Optional[ObjectAddress]:

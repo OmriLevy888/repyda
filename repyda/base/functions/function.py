@@ -93,14 +93,6 @@ class Function(IDBIterable, Referencing, Referenceable, Nameable, Commentable, A
     def name(self):
         self.name = None
 
-    @property
-    def is_auto_name(self) -> bool:
-        return ida_bytes.has_auto_name(ida_bytes.get_full_flags(self.ea))
-
-    @property
-    def is_user_defined_name(self) -> bool:
-        return ida_bytes.has_user_name(ida_bytes.get_flags(self.ea))
-
     def _default_tree_type(self) -> TreeType:
         return TreeType.Functions
 
@@ -243,7 +235,8 @@ class Function(IDBIterable, Referencing, Referenceable, Nameable, Commentable, A
 
     @property
     def guessed_type(self) -> FunctionType:
-        return FunctionType.from_c(idc.guess_type(self.ea))
+        guessed_type = idc.guess_type(self.ea)
+        return None if guessed_type is None else FunctionType.from_c(guessed_type)
 
     @property
     def ordinal(self) -> int:

@@ -194,7 +194,7 @@ field is matched against the contains.
     >>> main.match(Add(left=Contains(Number(1))))
     ...
     >>> # Will match against both the left and right hand sides, recursively
-    >>> main.match(Add(contains(Number(1))))
+    >>> main.match(Add(Contains(Number(1))))
     ...
     >>> # Another way of writing the match statement above
     >>> main.match(Add() / Number(1))

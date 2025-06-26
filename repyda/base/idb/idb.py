@@ -7,6 +7,7 @@ import idaapi
 import idc
 import idautils
 import ida_segment
+import ida_ida
 import functools
 
 from .segment import Segment, SegmentClass, SegmentPermissions
@@ -22,11 +23,9 @@ class Endianness(enum.Enum):
 class IDB:
     @staticmethod
     def ptr_size() -> int:
-        info = idaapi.get_inf_structure()
-
-        if info.is_64bit():
+        if ida_ida.inf_is_64bit():
             bits = 64
-        elif info.is_32bit():
+        elif ida_ida.inf_is_32bit():
             bits = 32
         else:
             bits = 16
@@ -35,16 +34,7 @@ class IDB:
 
     @staticmethod
     def get_endianness() -> Endianness:
-        info = idaapi.get_inf_structure()
-        try:
-            try:
-                is_be = info.is_be()
-            except:
-                is_be = info.mf
-        except:
-            raise RuntimeError('Could not determine endianness')
-
-        return Endianness.BIG if is_be else Endianness.LITTLE
+        return Endianness.BIG if ida_ida.inf_is_be() else Endianness.LITTLE
 
     @staticmethod
     def min_ea() -> int:

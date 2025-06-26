@@ -46,14 +46,6 @@ class CompoundTypeMember(Commentable, Nameable, Referenceable, Typed):
     def name(self):
         self.name = None
     
-    @property
-    def is_auto_name(self) -> bool:
-        raise NotImplementedError('Not implemented for compound type memebers')
-    
-    @property
-    def is_user_defined_name(self) -> bool:
-        raise NotImplementedError('Not implemented for compound type members')
-    
     def _default_tree_type(self) -> TreeType:
         raise NotImplementedError('Folders are not implemented for compound type members')
     

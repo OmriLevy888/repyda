@@ -65,14 +65,6 @@ class Variable(Commentable, Nameable, Referenceable, Typed):
     def name(self):
         self.name = None
 
-    @property
-    def is_auto_name(self) -> bool:
-        pass
-
-    @property
-    def is_user_defined_name(self) -> bool:
-        return self._lvar.has_user_name
-
     def _default_tree_type(self) -> TreeType:
         raise NotImplementedError('Not implemented for Variable')
 
