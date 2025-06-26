@@ -2,7 +2,7 @@ from __future__ import annotations
 from typing import Generator, Optional
 from abc import abstractmethod
 
-from ..basic_types import Type, Array, Pointer
+from ..basic_types import Type, CommentableType, DeleteableType, Array, Pointer
 from ..function_type import FunctionType
 from repyda.base.elements import Nameable, IDBIterable, Commentable, TreeType, Xref, Referenceable, Typed
 
@@ -130,7 +130,7 @@ class CompoundTypeMember(Commentable, Nameable, Referenceable, Typed):
         return f'{self.type} {self._compound.name}::{self.name}'
 
 
-class CompoundType(Type, Nameable, IDBIterable, Commentable):
+class CompoundType(CommentableType, DeleteableType, IDBIterable):
     @classmethod
     def exists(cls, name: str) -> bool:
         try:
@@ -255,73 +255,6 @@ class CompoundType(Type, Nameable, IDBIterable, Commentable):
     @property
     def size(self) -> int:
         return self._tinfo.get_size()
-
-    def _default_tree_type(self) -> TreeType:
-        return TreeType.Types
-    
-    def _is_valid_tree_type(self, type: TreeType) -> bool:
-        return type == TreeType.Types
-    
-    @property
-    def name(self) -> str:
-        return self._tinfo.get_type_name()
-
-    @name.setter
-    def name(self, value: Optional[str]):
-        if value is None:
-            raise NotImplementedError('Implement name deletion')
-        
-        error = self._tinfo.rename_type(value)
-        if error != 0:
-            raise RuntimeError(f'Failed to name {self} {value}: {ida_typeinf.tinfo_errstr(error)}')
-    
-    @name.deleter
-    def name(self):
-        self.name = None
-    
-    @property
-    def is_auto_name(self) -> bool:
-        raise NotImplementedError('Not implemented for compound types')
-    
-    @property
-    def is_user_defined_name(self) -> bool:
-        raise NotImplementedError('Not implemented for compound types')
-    
-    @property
-    def comment(self) -> Optional[str]:
-        return self._tinfo.get_type_cmt()
-
-    @comment.setter
-    def comment(self, value: Optional[str]):
-        error = self._tinfo.set_type_cmt(value, is_regcmt=True)
-        if error != 0:
-            raise RuntimeError(f'Failed to comment {self}: {ida_typeinf.tinfo_errstr(error)}')
-
-    @comment.deleter
-    def comment(self):
-        self.comment = None
-
-    @property
-    def repeatable_comment(self) -> Optional[str]:
-        return self._tinfo.get_type_rptcmt()
-
-    @repeatable_comment.setter
-    def repeatable_comment(self, value: Optional[str]):
-        error = self._tinfo.set_type_cmt(value, is_regcmt=False)
-        if error != 0:
-            raise RuntimeError(f'Failed to repeat comment {self}: {ida_typeinf.tinfo_errstr(error)}')
-
-    @repeatable_comment.deleter
-    def repeatable_comment(self):
-        self.repeatable_comment = None
-    
-    @property
-    def references(self) -> Generator[Xref, None, None]:
-        yield from map(Xref, idautils.XrefsTo(self._tinfo.get_tid()))
-
-    @property
-    def all_references(self) -> Generator[Xref, None, None]:
-        raise NotImplementedError('TODO')
     
 
 

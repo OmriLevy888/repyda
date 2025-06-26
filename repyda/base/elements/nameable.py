@@ -160,11 +160,13 @@ class Nameable(ABC):
     @property
     @abstractmethod
     def is_auto_name(self) -> bool:
+        # TODO: reconsider implementation
         raise NotImplementedError
 
     @property
     @abstractmethod
     def is_user_defined_name(self) -> bool:
+        # TODO: reconsider implementation
         raise NotImplementedError
 
     @abstractmethod

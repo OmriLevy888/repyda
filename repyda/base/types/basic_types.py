@@ -1,16 +1,18 @@
 from __future__ import annotations
+from abc import ABCMeta
 
 import idc
 import ida_typeinf
 import ida_kernwin
 import ida_nalt
 import ida_ida
+import idautils
 from typing import Optional, Tuple, TypeVar, Generic, Union, Any, Generator
 
 import sys
 import construct
 
-from repyda.base.elements import Referenceable, Xref, IDBIterable, Commentable
+from repyda.base.elements import Referenceable, Xref, XrefType, IDBIterable, Commentable, Nameable, TreeType
 
 
 def _is_generic_alias(object: Any) -> bool:
@@ -24,8 +26,8 @@ def import_c_header():
 def get_handling_class_for_tinfo(tinfo: ida_typeinf.tinfo_t) -> type:
     from repyda.base.types.function_type import FunctionType
     from repyda.base.types.compund_types import Struct, Union, Enum
-
-    if (tinfo.is_typedef() or (tinfo.is_from_subtil() and tinfo.is_typeref())) and not tinfo.is_forward_decl() and not tinfo.is_scalar():
+    
+    if (tinfo.is_typedef() or (tinfo.is_from_subtil() and tinfo.is_typeref())) and not tinfo.is_forward_decl():
         return TypeDefinition
     elif tinfo.is_ptr():
         return Pointer
@@ -45,7 +47,15 @@ def get_handling_class_for_tinfo(tinfo: ida_typeinf.tinfo_t) -> type:
         return Type
 
 
-class Type(Referenceable):
+class TypeMeta(ABCMeta):
+    def __instancecheck__(self, instance: Any) -> bool:
+        if instance.__class__ == TypeDefinition:
+            return isinstance(instance.target, self)
+        
+        return super().__instancecheck__(instance)
+
+
+class Type(Referenceable, metaclass=TypeMeta):
     CLEAN_TYPE_DETAILS = ('', b'', b'\x01')
 
     @staticmethod
@@ -107,12 +117,8 @@ class Type(Referenceable):
 
     def __init__(self, tinfo: ida_typeinf.tinfo_t):
         right_class = get_handling_class_for_tinfo(tinfo)
-        if right_class is not self.__class__ and right_class is not TypeDefinition:
-            raise ValueError(f'Should use {right_class} rather than {self.__class__}')
-
-        if right_class is TypeDefinition:
-            # TODO: add some _actual_tinfo member which should be the one facing the user
-            pass
+        if right_class is not self.__class__:
+            raise ValueError(f'Should use {right_class.__name__} rather than {self.__class__.__name__}')
 
         self._tinfo = tinfo
 
@@ -153,11 +159,11 @@ class Type(Referenceable):
         return hash(self.__str__())
 
     @property
-    def references(self):
-        raise NotImplementedError
+    def references(self) -> Generator[Xref, None, None]:
+        yield from map(Xref, idautils.XrefsTo(self._tinfo.get_tid()))
 
     @property
-    def all_references(self):
+    def all_references(self)  -> Generator[Xref, None, None]:
         raise NotImplementedError
 
     @property
@@ -249,6 +255,75 @@ class Type(Referenceable):
             return False
 
         return self.without_qualifiers() == type.without_qualifiers()
+
+
+class CommentableType(Type, Commentable):
+    @property
+    def comment(self) -> Optional[str]:
+        return self._tinfo.get_type_cmt()
+
+    @comment.setter
+    def comment(self, value: Optional[str]):
+        error = self._tinfo.set_type_cmt(value, is_regcmt=True)
+        if error != 0:
+            raise RuntimeError(f'Failed to comment {self}: {ida_typeinf.tinfo_errstr(error)}')
+
+    @comment.deleter
+    def comment(self):
+        self.comment = None
+
+    @property
+    def repeatable_comment(self) -> Optional[str]:
+        return self._tinfo.get_type_rptcmt()
+
+    @repeatable_comment.setter
+    def repeatable_comment(self, value: Optional[str]):
+        error = self._tinfo.set_type_cmt(value, is_regcmt=False)
+        if error != 0:
+            raise RuntimeError(f'Failed to repeat comment {self}: {ida_typeinf.tinfo_errstr(error)}')
+
+    @repeatable_comment.deleter
+    def repeatable_comment(self):
+        self.repeatable_comment = None
+
+
+class NameableType(Type, Nameable):
+    @property
+    def name(self) -> str:
+        return self._tinfo.get_type_name()
+
+    @name.setter
+    def name(self, value: Optional[str]):
+        if value is None:
+            raise NotImplementedError('Implement name deletion')
+
+        error = self._tinfo.rename_type(value)
+        if error != 0:
+            raise RuntimeError(f'Failed to name {self} {value}: {ida_typeinf.tinfo_errstr(error)}')
+
+    @name.deleter
+    def name(self):
+        self.name = None
+
+    @property
+    def is_auto_name(self) -> bool:
+        raise NotImplementedError
+
+    @property
+    def is_user_defined_name(self) -> bool:
+        raise NotImplementedError
+
+    def _default_tree_type(self) -> TreeType:
+        return TreeType.Types
+
+    def _is_valid_tree_type(self, type: TreeType) -> bool:
+        return type == TreeType.Types
+
+
+class DeleteableType(NameableType):
+    def delete(self):
+        if not ida_typeinf.del_named_type(None, self.name, ida_typeinf.NTF_TYPE):
+            raise RuntimeError(f'Failed to delete type {self.name}')
 
 
 TypeT = TypeVar('TypeT', bound=Type)
@@ -418,84 +493,80 @@ class Scalar(Type):
             self._tinfo.is_float() == other._tinfo.is_float()
 
 
-class TypeInstanceCheck(type):
-    def __instancecheck__(self, instance) -> bool:
-        return super().__instancecheck__(instance)
-
-
-class TypeDefinition(Type, IDBIterable, Commentable, metaclass=TypeInstanceCheck):
+class TypeDefinition(CommentableType, DeleteableType, IDBIterable):
     @staticmethod
     def iter() -> Generator[TypeDefinition, None, None]:
-        raise NotImplementedError
+        raise NotImplementedError('TODO')
 
     @classmethod
     def create_typedef(cls,
                        name: str,
                        *,
                        target: Union[str, Type] = None,
-                       tid: int = None,
                        tinfo: ida_typeinf.tinfo_t = None) -> TypeDefinition:
-        raise NotImplementedError
+        if tinfo is not None:
+            target = Type.from_tinfo(tinfo)
+        elif isinstance(target, str):
+            target = Type.from_c(target)
+        
+        tif = ida_typeinf.tinfo_t()
+        ttd = ida_typeinf.typedef_type_data_t(None, name)
+        ttd.name = target._tinfo.dstr()
+        if not tif.create_typedef(ttd):
+            raise RuntimeError(f'Failed to create typedef {target.name} {name}')
+
+        error = tif.set_named_type(None, name)
+        if error != 0:
+            raise RuntimeError(f'Failed to name typedef {target.name} {name}: {ida_typeinf.tinfo_errstr(error)}')
+        
+        return TypeDefinition(tinfo=tif)
     
     @classmethod
     def iter_for_type(cls,
                       target: Union[str, Type] = None,
                       *,
-                      tid: int = None,
                       tinfo: ida_typeinf.tinfo_t = None) -> Generator[TypeDefinition, None, None]:
-        raise NotImplementedError
+        if tinfo is not None:
+            target = Type.from_tinfo(tinfo)
+        elif isinstance(target, str):
+            target = Type.from_c(target)
+        
+        for xref in target.references:
+            if xref.type == XrefType.TYPEDEF:
+                yield xref.source
     
-    def delete(self):
-        raise NotImplementedError
+    def __init__(self,
+                 name: Optional[str] = None,
+                 *,
+                 tid: Optional[int] = None,
+                 tinfo: Optional[ida_typeinf.tinfo_t] = None):
+        if tid is not None:
+            tinfo = ida_typeinf.tinfo_t()
+            if not tinfo.get_type_by_tid(tid):
+                raise ValueError(f'Failed to get type {tid}')
+        elif name is not None:
+            tinfo = ida_typeinf.tinfo_t()
+            if not tinfo.get_named_type(name):
+                raise ValueError(f'Failed to get type {name}')
+        elif tinfo is None:
+            raise ValueError('Missing type identifier')
+        
+        super().__init__(tinfo=tinfo)
     
     @property
     def target(self) -> Type:
-        raise NotImplementedError
-    
-    @target.setter
-    def target(self, value: Union[Type, str]):
-        raise NotImplementedError
+        if self._tinfo.is_ptr():
+            return Pointer(Type.from_tinfo(self._tinfo.get_pointed_object()))
+        elif self._tinfo.is_array():
+            return Array(Type.from_tinfo(self._tinfo.get_array_element()),
+                         self._tinfo.get_array_nelems())
+        else:
+            return Type.from_c(self._tinfo.get_next_type_name())
     
     @property
     def final_target(self) -> Type:
-        raise NotImplementedError
+        return Type.from_c(self._tinfo.get_final_type_name())
     
-    @property
-    def comment(self) -> Optional[str]:
-        return self._tinfo.get_type_cmt()
-
-    @comment.setter
-    def comment(self, value: Optional[str]):
-        error = self._tinfo.set_type_cmt(value, is_regcmt=True)
-        if error != 0:
-            raise RuntimeError(f'Failed to comment {self}: {ida_typeinf.tinfo_errstr(error)}')
-
-    @comment.deleter
-    def comment(self):
-        self.comment = None
-
-    @property
-    def repeatable_comment(self) -> Optional[str]:
-        return self._tinfo.get_type_rptcmt()
-
-    @repeatable_comment.setter
-    def repeatable_comment(self, value: Optional[str]):
-        error = self._tinfo.set_type_cmt(value, is_regcmt=False)
-        if error != 0:
-            raise RuntimeError(f'Failed to repeat comment {self}: {ida_typeinf.tinfo_errstr(error)}')
-
-    @repeatable_comment.deleter
-    def repeatable_comment(self):
-        self.repeatable_comment = None
-    
-    @property
-    def references(self) -> Generator[Xref, None, None]:
-        raise NotImplementedError
-
-    @property
-    def all_references(self) -> Generator[Xref, None, None]:
-        raise NotImplementedError
-
 
 def _compute_architecutre_dependant_scalar_types():
     def tinfo_from_ida_type_t_simple_type(type_t: int) -> ida_typeinf.tinfo_t:

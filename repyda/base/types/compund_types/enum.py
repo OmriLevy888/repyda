@@ -1,7 +1,7 @@
 from __future__ import annotations
 from typing import Optional, Generator
 
-from ..basic_types import Type
+from ..basic_types import Type, CommentableType, DeleteableType, Scalar
 from repyda.base.elements import IDBIterable, Commentable, Referenceable, TreeType, Nameable, Xref
 
 import ida_typeinf
@@ -181,7 +181,7 @@ class EnumMember(Commentable, Referenceable, Nameable, IDBIterable):
         return f'{self.enum.base_type} {self.enum.name}::{self.name} = {self.value}'
 
 
-class Enum(Type, Nameable, Commentable, IDBIterable):
+class Enum(CommentableType, DeleteableType, IDBIterable):
     @staticmethod
     def iter() -> Generator[Enum, None, None]:
         for ordinal, tid, name in idautils.Structs():
@@ -234,69 +234,6 @@ class Enum(Type, Nameable, Commentable, IDBIterable):
             raise ValueError('Missing type identifier')
         
         super().__init__(tinfo=tinfo)
-
-    @property
-    def name(self) -> str:
-        return self._tinfo.get_type_name()
-
-    @name.setter
-    def name(self, value: Optional[str]):
-        if value is None:
-            raise NotImplementedError('Implement name deletion')
-
-        error = self._tinfo.rename_type(value)
-        if error != 0:
-            raise RuntimeError(f'Failed to name {self} {value}: {ida_typeinf.tinfo_errstr(error)}')
-
-    @name.deleter
-    def name(self):
-        self.name = None
-
-    @property
-    def is_auto_name(self) -> bool:
-        raise NotImplementedError
-
-    @property
-    def is_user_defined_name(self) -> bool:
-        raise NotImplementedError
-
-    def _default_tree_type(self) -> TreeType:
-        return TreeType.Types
-
-    def _is_valid_tree_type(self, type: TreeType) -> bool:
-        return type == TreeType.Types
-
-    @property
-    def comment(self) -> Optional[str]:
-        return self._tinfo.get_type_cmt()
-
-    @comment.setter
-    def comment(self, value: Optional[str]):
-        error = self._tinfo.set_type_cmt(value, is_regcmt=True)
-        if error != 0:
-            raise RuntimeError(f'Failed to comment {self}: {ida_typeinf.tinfo_errstr(error)}')
-
-    @comment.deleter
-    def comment(self):
-        self.comment = None
-
-    @property
-    def repeatable_comment(self) -> Optional[str]:
-        return self._tinfo.get_type_rptcmt()
-
-    @repeatable_comment.setter
-    def repeatable_comment(self, value: Optional[str]):
-        error = self._tinfo.set_type_cmt(value, is_regcmt=False)
-        if error != 0:
-            raise RuntimeError(f'Failed to repeat comment {self}: {ida_typeinf.tinfo_errstr(error)}')
-
-    @repeatable_comment.deleter
-    def repeatable_comment(self):
-        self.repeatable_comment = None
-
-    def delete(self):
-        if not ida_typeinf.del_named_type(None, self.name, ida_typeinf.NTF_TYPE):
-            raise RuntimeError(f'Failed to delete type {self.name}')
 
     def iter_members(self) -> Generator[EnumMember, None, None]:
         for idx in range(self.count_values):
@@ -375,7 +312,7 @@ class Enum(Type, Nameable, Commentable, IDBIterable):
             raise RuntimeError(f'Failed to set enum bitfield {self.name}: {ida_typeinf.tinfo_errstr(error)}')
     
     @property
-    def base_type(self) -> Type:
+    def base_type(self) -> Scalar:
         from ..basic_types import SignedInt8, SignedInt16, SignedInt32, SignedInt64, \
             UnsignedInt8, UnsignedInt16, UnsignedInt32, UnsignedInt64
         
@@ -401,14 +338,6 @@ class Enum(Type, Nameable, Commentable, IDBIterable):
             raise ValueError(f'Invalid bitfield enum type {value}')
         
         self.width = value.size
-    
-    @property
-    def references(self) -> Generator[Xref, None, None]:
-        yield from map(Xref, idautils.XrefsTo(self._tinfo.get_tid()))
-
-    @property
-    def all_references(self) -> Generator[Xref, None, None]:
-        raise NotImplementedError
     
     def get_construct_struct(self) -> construct.Struct:
         raise NotImplementedError
