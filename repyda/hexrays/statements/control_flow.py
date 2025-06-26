@@ -217,3 +217,89 @@ class Goto(ControlFlow):
     def make_citem_t(self) -> ida_hexrays.citem_t:
         #TODO: implement make_citem_t
         raise NotImplementedError
+
+
+class Try(ControlFlow):
+    HEXRAYS_TYPE = ida_hexrays.cit_try
+
+    def __init__(self,
+                 *,
+                 condition: Expression = None,
+                 true: Statement = None,
+                 false: Statement = None,
+                 elseif: Statement = None,
+                 **kwargs):
+        super().__init__(**kwargs)
+        self._condition = HexraysItem._wrap(condition)
+        self._true = HexraysItem._wrap(true)
+        self._false = HexraysItem._wrap(false)
+
+        if elseif is not None:
+            from repyda.hexrays.statements import BlockStatement
+            self._false = BlockStatement(statements=elseif)
+
+    def iter_children(self) -> Generator[HexraysItem, None, None]:
+        yield from super().iter_children()
+        yield self.condition
+        yield self.true
+
+        if self.false is not None:
+            yield self.false
+
+    @property
+    @bound_value
+    def condition(self) -> Expression:
+        return Expression.from_citem(self._hexrays_item.cif.expr, self._cfunc, self)
+
+    @property
+    @bound_value
+    def true(self) -> Statement:
+        return Statement.from_citem(self._hexrays_item.cif.ithen, self._cfunc, self)
+
+    @property
+    @bound_value
+    def false(self) -> Optional[Statement]:
+        if self._hexrays_item.cif.ielse is None:
+            return None
+
+        return Statement.from_citem(self._hexrays_item.cif.ielse, self._cfunc, self)
+
+    def make_citem_t(self) -> ida_hexrays.citem_t:
+        insn = ida_hexrays.cinsn_t()
+        insn.op = ida_hexrays.cit_if
+
+        cif = ida_hexrays.cif_t()
+        cif.expr = self.condition.make_citem_t()
+
+        if self.true is not None:
+            cif.ithen = self.true.make_citem_t()
+
+        if self.false is not None:
+            cif.ielse = self.false.make_citem_t()
+
+        insn.cif = cif
+        return insn
+
+
+class Throw(ControlFlow):
+        HEXRAYS_TYPE = ida_hexrays.cit_throw
+        
+        def __init__(self, exception: Expression = None, **kwargs):
+            super().__init__(**kwargs)
+            self._exception = HexraysItem._wrap(exception)
+        
+        def iter_children(self) -> Generator[HexraysItem, None, None]:
+            yield self.Expression
+
+        @property
+        @bound_value
+        def exception(self) -> Expression:
+            return Expression.from_citem(self._hexrays_item.creturn.expr, self._cfunc, self)
+        
+        def make_citem_t(self) -> ida_hexrays.citem_t:
+            throw = ida_hexrays.cinsn_t()
+            throw.op = ida_hexrays.cit_return
+            if self.expression is not None:
+                throw.expr = self.expression.make_citem_t()
+            return throw
+
