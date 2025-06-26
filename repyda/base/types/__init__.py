@@ -1,4 +1,4 @@
-from .basic_types import Type, Pointer, Array, Scalar, import_c_header, TypeDefinition
+from .basic_types import Type, CommentableType, NameableType, DeleteableType, Pointer, Array, Scalar, import_c_header, TypeDefinition
 from .compund_types import *
 from .function_type import FunctionType, Argument
 

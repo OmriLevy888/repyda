@@ -2,12 +2,13 @@ from __future__ import annotations
 from typing import Generator, Optional
 from abc import abstractmethod
 
-from ..basic_types import Type, Array, Pointer
+from ..basic_types import Type, CommentableType, DeleteableType, Array, Pointer
 from ..function_type import FunctionType
 from repyda.base.elements import Nameable, IDBIterable, Commentable, TreeType, Xref, Referenceable, Typed
 
 import ida_typeinf
 import idautils
+import construct
 
 
 class CompoundTypeMember(Commentable, Nameable, Referenceable, Typed):
@@ -60,7 +61,13 @@ class CompoundTypeMember(Commentable, Nameable, Referenceable, Typed):
         raise NotImplementedError('Folders are not implemented for compound type members')
     
     def _get_type(self) -> Optional[Type]:
-        return Type.from_tinfo(self._udm.type)
+        # Only way i managed to make IDA not fuck up the life time of the tinfo,
+        # tried manually coppying it in CompoundTypeMember._udm but it didn't work
+        udt = ida_typeinf.udt_type_data_t()
+        if not self._compound._tinfo.get_udt_details(udt):
+            raise RuntimeError(f'Failed to get compound type information for {self._compound}')
+        
+        return Type.from_tinfo(ida_typeinf.tinfo_t(udt[self._idx].type))
     
     def _set_type(self, value: Optional[Type]):
         from ..basic_types import UnsignedInt8
@@ -70,7 +77,9 @@ class CompoundTypeMember(Commentable, Nameable, Referenceable, Typed):
         if isinstance(value, FunctionType):
             value = Pointer(value)
         
-        self._compound._tinfo.set_udm_type(self._idx, value.get_tinfo())
+        error = self._compound._tinfo.set_udm_type(self._idx, value.get_tinfo())
+        if error != 0:
+            raise RuntimeError(f'Faield to set type {value} to {self}: {ida_typeinf.tinfo_errstr(error)}')
     
     @property
     def guessed_type(self) -> Type:
@@ -121,7 +130,7 @@ class CompoundTypeMember(Commentable, Nameable, Referenceable, Typed):
         return f'{self.type} {self._compound.name}::{self.name}'
 
 
-class CompoundType(Type, Nameable, IDBIterable, Commentable):
+class CompoundType(CommentableType, DeleteableType, IDBIterable):
     @classmethod
     def exists(cls, name: str) -> bool:
         try:
@@ -246,73 +255,6 @@ class CompoundType(Type, Nameable, IDBIterable, Commentable):
     @property
     def size(self) -> int:
         return self._tinfo.get_size()
-
-    def _default_tree_type(self) -> TreeType:
-        return TreeType.Types
-    
-    def _is_valid_tree_type(self, type: TreeType) -> bool:
-        return type == TreeType.Types
-    
-    @property
-    def name(self) -> str:
-        return self._tinfo.get_type_name()
-
-    @name.setter
-    def name(self, value: Optional[str]):
-        if value is None:
-            raise NotImplementedError('Implement name deletion')
-        
-        error = self._tinfo.rename_type(value)
-        if error != 0:
-            raise RuntimeError(f'Failed to name {self} {value}: {ida_typeinf.tinfo_errstr(error)}')
-    
-    @name.deleter
-    def name(self):
-        self.name = None
-    
-    @property
-    def is_auto_name(self) -> bool:
-        raise NotImplementedError('Not implemented for compound types')
-    
-    @property
-    def is_user_defined_name(self) -> bool:
-        raise NotImplementedError('Not implemented for compound types')
-    
-    @property
-    def comment(self) -> Optional[str]:
-        return self._tinfo.get_type_cmt()
-
-    @comment.setter
-    def comment(self, value: Optional[str]):
-        error = self._tinfo.set_type_cmt(value, is_regcmt=True)
-        if error != 0:
-            raise RuntimeError(f'Failed to comment {self}: {ida_typeinf.tinfo_errstr(error)}')
-
-    @comment.deleter
-    def comment(self):
-        self.comment = None
-
-    @property
-    def repeatable_comment(self) -> Optional[str]:
-        return self._tinfo.get_type_rptcmt()
-
-    @repeatable_comment.setter
-    def repeatable_comment(self, value: Optional[str]):
-        error = self._tinfo.set_type_cmt(value, is_regcmt=False)
-        if error != 0:
-            raise RuntimeError(f'Failed to repeat comment {self}: {ida_typeinf.tinfo_errstr(error)}')
-
-    @repeatable_comment.deleter
-    def repeatable_comment(self):
-        self.repeatable_comment = None
-    
-    @property
-    def references(self) -> Generator[Xref, None, None]:
-        yield from map(Xref, idautils.XrefsTo(self._tinfo.get_tid()))
-
-    @property
-    def all_references(self) -> Generator[Xref, None, None]:
-        raise NotImplementedError('TODO')
     
 
 
@@ -341,6 +283,9 @@ class Struct(CompoundType):
     
     def _add_member_offset(self) -> int:
         return self.size * 8
+    
+    def get_construct_struct(self) -> construct.Struct:
+        raise NotImplementedError
     
     def __repr__(self) -> str:
         return f'struct {self.name}'
@@ -374,6 +319,9 @@ class Union(CompoundType):
     
     def _add_member_offset(self) -> int:
         return 0
+    
+    def get_construct_struct(self) -> construct.Struct:
+        raise NotImplementedError
     
     def __repr__(self) -> str:
         return f'union {self.name}'
