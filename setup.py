@@ -1,9 +1,12 @@
 from setuptools import setup, find_packages
 from setuptools.command.install import install
 from pathlib import Path
+from importlib.util import find_spec
 import sys
 import os
 import re
+import subprocess
+import shutil
 
 
 IPYIDARC = '''
@@ -101,9 +104,38 @@ class InstallRepydaPluginManager(install):
         self._update_rcfile(IDAPYTHONRC, idapythonrc_path)
         self._update_rcfile(IPYIDARC, ipyidarc_path)
 
+    def _install_ida_lib(self):
+        ida_lib_name = 'ida'
+        
+        if (spec := find_spec(ida_lib_name)) is not None:
+            print(f'[+] idalib installed at {spec.origin}')
+            return
+        
+        ida_64 = shutil.which('ida64.exe')
+        if ida_64 is None:
+            print('[!] Failed to find ida installation directory, some features will not be available')
+            print('[?] Look into your ida install directory, under idalib and follow the readme for manual installation')
+            return
+        
+        ida_lib_python = Path(ida_64).parent / 'idalib' / 'python'
+        if 0 != subprocess.check_call([sys.executable, "-m", "pip", "install", str(ida_lib_python)]):
+            print(f'[!] Failed to install idalib, some features will not be available')
+            print('[?] Look into your ida install directory, under idalib and follow the readme for manual installation')
+            return
+        
+        actiavte_idalib_script = ida_lib_python / 'py-activate-idalib.py'
+        if 0 != subprocess.check_call([sys.executable, str(actiavte_idalib_script)]):
+            print('[!] Failed to activate idalib, some features will not be available')
+            print('[?] This is most likely due to insufficient privileges, run the activate script as admin/root')
+            print('[?] Look into your ida install directory, under idalib and follow the readme for manual installation')
+            return
+
+        print('[+] Successfuly installed idalib')
+
     def run(self):
         install.run(self)
         self._setup_idapythonrc()
+        self._install_ida_lib()
 
 setup(
     name='repyda',
