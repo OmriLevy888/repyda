@@ -1,0 +1,1 @@
+pytest tests -W ignore::DeprecationWarning
