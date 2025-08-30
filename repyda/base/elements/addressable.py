@@ -40,9 +40,8 @@ class Color:
 
 class Addressable(ABC):
     @staticmethod
-    @abstractmethod
     def exists_at(ea: int) -> bool:
-        raise NotImplementedError
+        return not idc.is_unknown(ida_bytes.get_full_flags(ea))
 
     @staticmethod
     def at(ea: int) -> Optional[Addressable]:
@@ -60,7 +59,7 @@ class Addressable(ABC):
 
     @staticmethod
     def exact_at(ea: int) -> Optional[Addressable]:
-        from repyda.base.data import Data
+        from repyda.base.data import Data, Address
         from repyda.base.functions import Function, Block, Instruction
 
         if Instruction.exists_at(ea):
@@ -71,6 +70,8 @@ class Addressable(ABC):
             return Function(ea)
         elif Data.exists_at(ea):
             return Data(ea)
+        elif Address.exists_at(ea):
+            return Address(ea)
         else:
             raise ValueError(f'Nothing defined at {ea}')
 
