@@ -6,7 +6,7 @@ import idautils
 import ida_bytes
 import ida_kernwin
 
-from repyda.base.elements import Addressable, Commentable, Nameable, Referenceable, \
+from repyda.base.elements import Addressable, Commentable, Referenceable, \
     Referencing, MultipleSequenceable, Xref, XrefType
 
 if TYPE_CHECKING:
@@ -14,7 +14,7 @@ if TYPE_CHECKING:
     from repyda.base.functions.instruction import Instruction
 
 
-class Block(Addressable, Commentable, Nameable, Referenceable, Referencing, MultipleSequenceable):
+class Block(Addressable, Commentable, Referenceable, Referencing, MultipleSequenceable):
     @staticmethod
     def exists_at(ea: int) -> bool:
         return idc.is_code(ida_bytes.get_full_flags(ea))
@@ -74,26 +74,6 @@ class Block(Addressable, Commentable, Nameable, Referenceable, Referencing, Mult
 
     @repeatable_comment.deleter
     def repeatable_comment(self):
-        raise NotImplementedError
-
-    @property
-    def name(self) -> str:
-        raise NotImplementedError
-
-    @name.setter
-    def name(self, value: Optional[str]):
-        raise NotImplementedError
-
-    @name.deleter
-    def name(self):
-        raise NotImplementedError
-
-    @property
-    def is_auto_name(self) -> bool:
-        raise NotImplementedError
-
-    @property
-    def is_user_defined_name(self) -> bool:
         raise NotImplementedError
 
     @property
