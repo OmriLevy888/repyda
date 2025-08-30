@@ -11,6 +11,8 @@ import ida_kernwin
 class Color:
     @classmethod
     def from_bgr(cls, bgr: int) -> Color:
+        if bgr == idc.DEFCOLOR:
+            raise ValueError('No color defined')
         r = bgr & 0x0000ff
         g = (bgr & 0x00ff00) >> 0x8
         b = (bgr & 0xff0000) >> 0x10
@@ -140,7 +142,10 @@ class Addressable(ABC):
         return Color.from_bgr(idc.get_color(self.ea, idc.CIC_ITEM))
 
     @color.setter
-    def color(self, value: Union[Color, int]):
+    def color(self, value: Color | int | None):
+        if value is None:
+            del self.color
+            return
         if not isinstance(value, Color):
             value = Color(value)
 
@@ -148,7 +153,7 @@ class Addressable(ABC):
 
     @color.deleter
     def color(self):
-        raise NotImplementedError
+        idc.set_color(self.ea, idc.CIC_ITEM, idc.DEFCOLOR)
 
     def move_cursor_to(self):
         ida_kernwin.jumpto(self.ea)
