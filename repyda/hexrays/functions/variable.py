@@ -57,8 +57,7 @@ class Variable(Commentable, Nameable, Referenceable, Typed):
         if value == self.name:
             return
 
-        self._lvar.name = value
-        self._lvar.set_user_name()
+        ida_hexrays.rename_lvar(self._function.ea, self.name, value)
         self._function.view.refresh_ctext()
 
     @name.deleter
